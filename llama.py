@@ -63,6 +63,16 @@ class RMSNorm(torch.nn.Module):
         output = self._norm(x.float()).type_as(x)
         return output * self.weight
 
+"""
+  config.dim = 512
+  config.n_heads = 8
+  config.n_kv_heads = 8
+  self.head_dim = 512 // 8 = 64
+  compute_query = nn.Linear(512, 8 * 64, bias=False)
+  compute_key = nn.Linear(512, 8 * 64, bias=False)
+  compute_value = nn.Linear(512, 8 * 64, bias=False)
+  compute_output = nn.Linear(8 * 64, 512, bias=False)
+"""
 class Attention(nn.Module):
     def __init__(self, config: LlamaConfig):
         super().__init__()
@@ -97,8 +107,12 @@ class Attention(nn.Module):
         attention matrix before applying it to the value tensor.
         '''
         # todo
-        raise NotImplementedError
-
+        scores = torch.matmul(query, key.transpose(2, 3)) / math.sqrt(self.head_dim)
+        scores = torch.nn.functional.softmax(scores.float(), dim=-1).type_as(query)
+        scores = self.attn_dropout(scores)
+        output = torch.matmul(scores, value)
+        return output
+    
     def forward(
         self,
         x: torch.Tensor
@@ -281,12 +295,10 @@ class Llama(LlamaPreTrainedModel):
             # forward the model to get the logits for the index in the sequence
             logits, _ = self(idx_cond)
             logits = logits[:, -1, :] # crop to just the final time step
-            # todo
-            raise NotImplementedError
-
+       
             if temperature == 0.0:
                 # select the single most likely index
-                idx_next = None
+                _, idx_next = torch.topk(logits, k=1, dim=-1)
             else:
                 '''
                 Perform temperature sampling:
@@ -297,7 +309,9 @@ class Llama(LlamaPreTrainedModel):
 
                 Note that we are not using top-k sampling/nucleus sampling in this procedure.
                 '''
-                idx_next = None
+                logits = logits / temperature
+                probs = F.softmax(logits, dim=-1)
+                idx_next = torch.multinomial(probs, num_samples=1)
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next), dim=1)
 
