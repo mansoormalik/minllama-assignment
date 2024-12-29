@@ -203,11 +203,9 @@ def generate_sentence(args, prefix, outfile, max_new_tokens = 75, temperature = 
 		llama = load_pretrained(args.pretrained_model_path)
 		llama = llama.to(device)
 		print(f"load model from {args.pretrained_model_path}")
-		# args.max_senence_len = None
 		enc = Tokenizer(args.max_sentence_len)
 
 		start_ids = enc.encode(prefix, bos=True, eos=False)
-		#start_ids = list of 34 tokens
 		x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
 
 		# run generation
@@ -337,7 +335,6 @@ if __name__ == "__main__":
 		# Step 1
 		# Complete this sentence to test your implementation!
 		prefix = "I have wanted to see this thriller for a while, and it didn't disappoint. Keanu Reeves, playing the hero John Wick, is"
-		#prefix length = 22 words and 4 punctuation marks
 		generate_sentence(args, prefix, args.generated_sentence_low_temp_out, max_new_tokens=75, temperature=0.0)
 		generate_sentence(args, prefix, args.generated_sentence_high_temp_out, max_new_tokens=75, temperature=1.0)
 	elif args.option == "prompt":
